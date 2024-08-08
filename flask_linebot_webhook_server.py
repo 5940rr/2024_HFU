@@ -24,6 +24,7 @@ app = Flask(__name__)
 #1. 先到Line Developer Console 把 Channel Secret & Channel Access Token 複製起來
 #2. 把這兩個密文，存到環境變數內:工具列搜尋<環境變數>，新增兩個環境變數，並且把值貼上去
 #3. 按下確定儲存，要記得變數名稱，這些資訊只會存在你當前使用的電腦裡
+#4. 透過以下程式碼，取得環境變數儲存的對應數值
 channel_secret = os.getenv('LINEBOT_SECRET_KEY', None)
 channel_access_token = os.getenv('LINEBOT_ACCESS_TOKEN', None)
 if channel_secret is None:
