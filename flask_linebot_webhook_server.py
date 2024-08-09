@@ -21,43 +21,28 @@ from linebot.v3.webhooks import (
     MessageEvent, # 傳輸過來的方法
     TextMessageContent  # 使用者傳過來的資料格式
 )
-import os,sys
+import os
+from handle_keys import get_secret_and_token
+from openai_api import chat_with_chatgpt
 
 app = Flask(__name__)
+keys=get_secret_and_token()
+configuration = Configuration(access_token=keys["LINEBOT_ACCESS_TOKEN"])
+handler = WebhookHandler(keys["LINEBOT_SECRET_KEY"])
 
-#1. 先到Line Developer Console 把 Channel Secret & Channel Access Token 複製起來
-#2. 把這兩個密文，存到環境變數內:工具列搜尋<環境變數>，新增兩個環境變數，並且把值貼上去
-#3. 按下確定儲存，要記得變數名稱，這些資訊只會存在你當前使用的電腦裡
-#4. 透過以下程式碼，取得環境變數儲存的對應數值
-def get_secret_and_token():
-    channel_secret = os.getenv('LINEBOT_SECRET_KEY', None)
-    channel_access_token = os.getenv('LINEBOT_ACCESS_TOKEN', None)
-    if channel_secret is None:
-        print('Specify LINEBOT_SECRET_KEY as environment variable.')
-        sys.exit(1)
-    if channel_access_token is None:
-        print('Specify LINEBOT_ACCESS_TOKEN as environment variable.')
-        sys.exit(1)
-    
-    return {
-        "LINEBOT_SECRET_KEY":channel_access_token,
-        "LINEBOT_ACCESS_TOKEN":channel_access_token
-    }
 
-configuration = Configuration(access_token="LINEBOT_ACCESS_TOKEN")
-handler = WebhookHandler("LINEBOT_SECRET_KEY")
-
-#測試用，確定webhook server 有連通
 @app.route("/")
 def hello_world(username=""):
+    #測試用，確定webhook server 有連通
     return render_template("hello.html",name=username)
 
-# 設計一個 callback 的路由，提供給Line官方後台去呼叫
-# 也就是所謂的呼叫Webhook Srever
-# 因為官方會把使用者傳輸的訊息轉傳給Webhook Server
-# 所以會使用 RESTful API 的POST的方法
+
 @app.route("/callback", methods=['POST'])
 def callback():
+    # 設計一個 callback 的路由，提供給Line官方後台去呼叫
+    # 也就是所謂的呼叫Webhook Srever
+    # 因為官方會把使用者傳輸的訊息轉傳給Webhook Server
+    # 所以會使用 RESTful API 的POST的方法
     # get X-Line-Signature header value
     signature = request.headers['X-Line-Signature']
 
@@ -74,19 +59,25 @@ def callback():
 
     return 'OK'
 
-# 根據不同的使用者事件(event)，區分不同的方式回應
-# eg.MessageEvent 代表使用者單純傳訊息的事件
-# TextMessageContent 代表使用者傳輸的訊息內容是文字
-# 符合兩個條件的事件，會被 handle_message 所處理
+
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
+    # 根據不同的使用者事件(event)，區分不同的方式回應
+    # eg.MessageEvent 代表使用者單純傳訊息的事件
+    # TextMessageContent 代表使用者傳輸的訊息內容是文字
+    # 符合兩個條件的事件，會被 handle_message 所處理
+
+    user_message = event.message.text # 使用者傳過來的訊息在這裡
+    api_key=keys["OPENAI_API_KEY"]
+    response=chat_with_chatgpt(user_message,api_key)
+
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_api.reply_message_with_http_info(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
                 messages=[
-                    TextMessage(text=event.message.text)
+                    TextMessage(text=response)
                 ]
             )
         )
