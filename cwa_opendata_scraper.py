@@ -27,9 +27,6 @@ def get_cities_weather(cwa_api_key, locations_name):
     else:
         print("Requests Fail")
 
-    # pprint(weather_data["records"]["location"])
-
-    
     cities_weather = dict()
     # 每一個location
     for location in weather_data["records"]["location"]:
