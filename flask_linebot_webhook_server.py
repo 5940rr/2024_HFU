@@ -24,6 +24,7 @@ from linebot.v3.webhooks import (
 import os
 from handle_keys import get_secret_and_token
 from openai_api import chat_with_chatgpt
+from cwa_opendata_scraper import get_cities_weather
 
 app = Flask(__name__)
 keys=get_secret_and_token()
@@ -67,10 +68,33 @@ def handle_message(event):
     # TextMessageContent 代表使用者傳輸的訊息內容是文字
     # 符合兩個條件的事件，會被 handle_message 所處理
     user_id=event.source.user_id #使用者的ID
-    # print("user id: ",user_id)
     user_message = event.message.text # 使用者傳過來的訊息在這裡
     api_key=keys["OPENAI_API_KEY"]
-    response=chat_with_chatgpt(user_id,user_message,api_key)
+
+    #天氣如何 臺中市
+    if "天氣如何" in user_message:
+        #問天氣
+        cwa_api_key = keys["CWA_API_KEY"]
+        locations_name = user_message.split()[1:]
+        if locations_name:
+            weather_data = get_cities_weather(cwa_api_key, locations_name)
+
+            response=""
+            for location in weather_data: # 取得每一個縣市名稱
+                response += f"{location}:\n" # 加入縣市名稱訊息到response
+                for weather_key in sorted(weather_data[location]): # 根據縣市名稱，取得縣市資料
+                    response += f"\t\t{weather_key}: {weather_data[location][weather_key]}\n"
+            response = response.strip()
+            response = chat_with_chatgpt(
+                user_id, response, api_key,
+                extra_prompt="請幫我生出一段報導，根據前面的天氣資訊，建議使用者的穿搭等等，每個縣市分開，200字以內"
+            )
+        else:
+            response = "請給我想知道的縣市資料，請輸入:天氣如何 臺中市 桃園市 彰化市"
+
+    else:
+        #閒聊
+        response=chat_with_chatgpt(user_id,user_message,api_key)
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
