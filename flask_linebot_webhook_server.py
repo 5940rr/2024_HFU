@@ -74,27 +74,10 @@ def handle_message(event):
     #天氣如何 臺中市
     if "天氣如何" in user_message:
         #問天氣
-        cwa_api_key = keys["CWA_API_KEY"]
-        locations_name = user_message.split()[1:]
-        if locations_name:
-            weather_data = get_cities_weather(cwa_api_key, locations_name)
-
-            response=""
-            for location in weather_data: # 取得每一個縣市名稱
-                response += f"{location}:\n" # 加入縣市名稱訊息到response
-                for weather_key in sorted(weather_data[location]): # 根據縣市名稱，取得縣市資料
-                    response += f"\t\t{weather_key}: {weather_data[location][weather_key]}\n"
-            response = response.strip()
-            response = chat_with_chatgpt(
-                user_id, response, api_key,
-                extra_prompt="請幫我生出一段報導，根據前面的天氣資訊，建議使用者的穿搭等等，每個縣市分開，200字以內"
-            )
-        else:
-            response = "請給我想知道的縣市資料，請輸入:天氣如何 臺中市 桃園市 彰化市"
-
+       response = handle_weather(user_id, user_message)
     else:
         #閒聊
-        response=chat_with_chatgpt(user_id,user_message,api_key)
+        response = chat_with_chatgpt(user_id,user_message,api_key)
 
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -106,6 +89,32 @@ def handle_message(event):
                 ]
             )
         )
+
+def handle_weather(user_id, user_message, chatgpt_api_key=keys['OPENAI_API_KEY']):
+    # 問天氣
+    cwa_api_key = keys['CWA_API_KEY']
+    locations_name = user_message.split()[1:]
+    if locations_name: # 有地點才做事情
+        weather_data = get_cities_weather(cwa_api_key, locations_name)
+        '''
+        台中市:
+            xxx: aaa 
+            yyy: bbb
+            zzz: ccc
+        '''
+        response = ""
+        for location in weather_data: # 取得每一個縣市的名稱
+            response += f"{location}:\n" # 加入縣市名稱訊息到response
+            for weather_key in sorted(weather_data[location]): # 根據縣市名稱，取得縣市天氣資料
+                response += f"\t\t{weather_key}: {weather_data[location][weather_key]}\n"
+        response = response.strip()
+        response = chat_with_chatgpt(
+            user_id, response, chatgpt_api_key,
+            extra_prompt="請你幫我生出一段報導，根據前面的天氣資訊，建議使用者的穿搭等等，每個縣市分開，200字以內。"
+        )
+    else:
+        response = "請給我你想知道的縣市，請輸入：天氣如何 臺中市 桃園市 彰化市"
+    return response
 
 if __name__ == "__main__":
     app.run(debug=True)
